@@ -45,5 +45,5 @@ trainer.train()
 trainer.evaluate()
 
 # Save the model
-model.save_pretrained("./my_model")
-tokenizer.save_pretrained("./my_model")
+model.save_pretrained("JonusNattapong/LEO")
+tokenizer.save_pretrained("JonusNattapong/LEO")
