@@ -33,7 +33,7 @@ model = model.to(device)
 
 
 # Load the dataset
-dataset = load_dataset("wisesight_sentiment")
+dataset = load_dataset("pythainlp/wisesight_sentiment")
 
 # Check dataset structure
 print(dataset["train"].column_names)  # Verify the correct column names
