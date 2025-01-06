@@ -1,63 +1,69 @@
-from transformers import Trainer, TrainingArguments, EarlyStoppingCallback
-from datasets import load_dataset
 import torch
-import numpy as np
-import evaluate
+from transformers import Trainer, TrainingArguments
+from datasets import load_dataset
+from model.model import load_model, load_tokenizer
+from transformers import EarlyStoppingCallback
 
-def train_and_evaluate(model, tokenizer, output_dir="./results", hub_model_id="JonusNattapong/KaNomTom"):
-    # Load dataset
-    dataset = load_dataset("pythainlp/wisesight_sentiment")
-    def tokenize_function(examples):
-        return tokenizer(examples["texts"], padding="max_length", truncation=True, max_length=512)
-    tokenized_datasets = dataset.map(tokenize_function, batched=True, remove_columns=["texts"])
-    tokenized_datasets = tokenized_datasets.rename_column("category", "labels")
-    tokenized_datasets.set_format("torch", columns=["input_ids", "attention_mask", "labels"])
+class MultiTaskTrainer:
+    def __init__(self, task_type, model_name, dataset, output_dir):
+        self.task_type = task_type
+        self.model_name = model_name
+        self.dataset = dataset
+        self.output_dir = output_dir
 
-    # Split dataset into train and eval sets
-    split_dataset = tokenized_datasets["train"].train_test_split(test_size=0.1, seed=42)
-    train_dataset = split_dataset["train"]
-    eval_dataset = split_dataset["test"]
+        self.model = load_model(task_type, model_name)
+        self.tokenizer = load_tokenizer(model_name)
 
-    # Define training arguments
-    training_args = TrainingArguments(
-        output_dir=output_dir,
-        learning_rate=2e-5,
-        per_device_train_batch_size=4,
-        per_device_eval_batch_size=4,
-        num_train_epochs=3,
-        weight_decay=0.01,
-        evaluation_strategy="epoch",
-        save_strategy="epoch",
-        logging_dir="./logs",
-        push_to_hub=True,
-        hub_model_id=hub_model_id,
-        load_best_model_at_end=True
-    )
+        # Tokenize the dataset
+        self.dataset = self.dataset.map(self.tokenize_function, batched=True)
 
-    # Define evaluation metric
-    metric = evaluate.load("accuracy")
-    def compute_metrics(eval_pred):
+        # Set format for PyTorch
+        self.dataset.set_format("torch", columns=["input_ids", "attention_mask", "labels"])
+
+        # Split the dataset into train and validation sets
+        split_dataset = self.dataset["train"].train_test_split(test_size=0.1, seed=42)
+        self.train_dataset = split_dataset["train"]
+        self.eval_dataset = split_dataset["test"]
+
+    def tokenize_function(self, examples):
+        return self.tokenizer(examples["text"], padding="max_length", truncation=True, max_length=512)
+
+    def compute_metrics(self, eval_pred):
         logits, labels = eval_pred
-        predictions = np.argmax(logits, axis=-1)
-        return metric.compute(predictions=predictions, references=labels)
+        predictions = logits.argmax(axis=-1)
+        accuracy = (predictions == labels).mean()
+        return {"accuracy": accuracy}
 
-    # Early stopping callback
-    early_stopping = EarlyStoppingCallback(early_stopping_patience=2)
+    def train(self):
+        training_args = TrainingArguments(
+            output_dir=self.output_dir,
+            evaluation_strategy="epoch",
+            learning_rate=2e-5,
+            per_device_train_batch_size=4,
+            per_device_eval_batch_size=4,
+            num_train_epochs=3,
+            weight_decay=0.01,
+            save_strategy="epoch",
+            logging_dir="./logs",
+            logging_steps=10,
+            save_total_limit=2,
+            load_best_model_at_end=True,
+        )
 
-    # Initialize Trainer
-    trainer = Trainer(
-        model=model,
-        args=training_args,
-        train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
-        compute_metrics=compute_metrics,
-        callbacks=[early_stopping]
-    )
+        early_stopping = EarlyStoppingCallback(early_stopping_patience=2)
 
-    # Train and evaluate the model
-    trainer.train()
-    trainer.evaluate()
+        trainer = Trainer(
+            model=self.model,
+            args=training_args,
+            train_dataset=self.train_dataset,
+            eval_dataset=self.eval_dataset,
+            compute_metrics=self.compute_metrics,
+            callbacks=[early_stopping],
+        )
 
-    # Push model and tokenizer to Hugging Face Hub
-    model.push_to_hub(hub_model_id)
-    tokenizer.push_to_hub(hub_model_id)
+        trainer.train()
+        trainer.evaluate()
+
+        # Save model
+        self.model.save_pretrained(self.output_dir)
+

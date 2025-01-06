@@ -7,6 +7,7 @@ LEO/
 │
 ├── data/
 │   ├── dataset.py       # Code to load and prepare datasets
+│   └── audio_data.py    # Code to handle audio data processing
 │
 ├── logs/
 │   ├── training_logs/   # Directory to store training log files
@@ -14,5 +15,5 @@ LEO/
 ├── results/
 │   ├── model_output/    # Directory for model output files
 │
-├── requirements.txt     # Dependencies list (transformers, datasets, etc.)
+├── requirements.txt     # Dependencies list (transformers, datasets, torchaudio, etc.)
 └── main.py              # Main script to run the project
