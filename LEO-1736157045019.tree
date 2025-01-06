@@ -1,0 +1,18 @@
+LEO/
+│
+├── model/
+│   ├── model.py         # Code for loading and training the model
+│   ├── trainer.py       # Code to train and evaluate the model
+│   └── utils.py         # Utility functions for NLP tasks
+│
+├── data/
+│   ├── dataset.py       # Code to load and prepare datasets
+│
+├── logs/
+│   ├── training_logs/   # Directory to store training log files
+│
+├── results/
+│   ├── model_output/    # Directory for model output files
+│
+├── requirements.txt     # Dependencies list (transformers, datasets, etc.)
+└── main.py              # Main script to run the project
