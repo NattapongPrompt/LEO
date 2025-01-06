@@ -1,7 +1,7 @@
 transformers==4.28.1
 torch>=2.0.0
 datasets==2.8.0
-torchaudio==0.13.0   # For Audio data handling
-speechrecognition==3.8.1   # For Automatic Speech Recognition (ASR)
-gTTS==2.2.4  # For Text-to-Speech (TTS)
-pydub==0.25.1  # For Audio conversion
+torchaudio>=2.0.0  # Use a compatible version with torch>=2.0.0
+speechrecognition==3.8.1
+gTTS==2.2.4
+pydub==0.25.1
