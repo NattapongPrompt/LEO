@@ -1,24 +1,26 @@
 from transformers import AutoModelForSequenceClassification, AutoTokenizer, Trainer, TrainingArguments
-from datasets import load_dataset, load_metric
+from datasets import load_dataset
 from huggingface_hub import login
 import numpy as np
-import torch
+import torch  # Ensure PyTorch is installed
+import evaluate  # Import the evaluate library
 
 # Log in to Hugging Face Hub
 login()  # You'll be prompted to enter your Hugging Face token
 
 # Check GPU availability
-print(f"GPU available: {torch.cuda.is_available()}")
-print(f"Number of GPUs: {torch.cuda.device_count()}")
-print(f"GPU name: {torch.cuda.get_device_name(0)}")
+print(f"GPU available: {torch.cuda.is_available()}")  # Should return `True` if GPU is available
+print(f"Number of GPUs: {torch.cuda.device_count()}")  # Number of GPUs available
+print(f"GPU name: {torch.cuda.get_device_name(0)}")  # Name of the first GPU
 
 # Load model and tokenizer
 model_name = "airesearch/wangchanberta-base-att-spm-uncased"
 tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
 model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=4)
 
-# Move model to GPU
-model = model.to("cuda")
+# Move model to GPU (if available) or CPU
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model = model.to(device)
 
 # Load Thai dataset (Wisesight Sentiment)
 dataset = load_dataset("wisesight_sentiment")
@@ -29,7 +31,7 @@ def tokenize_function(examples):
 
 tokenized_datasets = dataset.map(tokenize_function, batched=True)
 
-# Set format for PyTorch and move to GPU
+# Set format for PyTorch
 tokenized_datasets.set_format("torch", columns=["input_ids", "attention_mask", "label"])
 train_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(1000))
 eval_dataset = tokenized_datasets["validation"].shuffle(seed=42).select(range(1000))
@@ -49,11 +51,11 @@ training_args = TrainingArguments(
     logging_steps=10,
     push_to_hub=True,
     hub_model_id="JonusNattapong/KaNomTom",
-    fp16=True,  # Enable mixed precision for faster training
+    fp16=torch.cuda.is_available(),  # Enable mixed precision only if GPU is available
 )
 
 # Load evaluation metric
-metric = load_metric("accuracy")
+metric = evaluate.load("accuracy")  # Use evaluate.load instead of load_metric
 
 def compute_metrics(eval_pred):
     logits, labels = eval_pred
