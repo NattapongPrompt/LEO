@@ -2,22 +2,18 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer, Trai
 from datasets import load_dataset
 
 # Load model and tokenizer
-model_name = "bert-base-uncased"
-model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=2)
+model_name = "airesearch/wangchanberta-base-att-spm-uncased"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=4)
 
-# Load dataset
-dataset = load_dataset("imdb")
+# Load Thai dataset (e.g., Wisesight Sentiment)
+dataset = load_dataset("wisesight_sentiment")
 
 # Tokenize dataset
 def tokenize_function(examples):
     return tokenizer(examples["text"], padding="max_length", truncation=True)
 
 tokenized_datasets = dataset.map(tokenize_function, batched=True)
-
-# Split dataset
-train_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(1000))
-eval_dataset = tokenized_datasets["test"].shuffle(seed=42).select(range(1000))
 
 # Set up training arguments
 training_args = TrainingArguments(
@@ -34,8 +30,8 @@ training_args = TrainingArguments(
 trainer = Trainer(
     model=model,
     args=training_args,
-    train_dataset=train_dataset,
-    eval_dataset=eval_dataset,
+    train_dataset=tokenized_datasets["train"],
+    eval_dataset=tokenized_datasets["validation"],
 )
 
 # Train the model
@@ -45,5 +41,5 @@ trainer.train()
 trainer.evaluate()
 
 # Save the model
-model.save_pretrained("JonusNattapong/LEO")
-tokenizer.save_pretrained("JonusNattapong/LEO")
+model.save_pretrained("JonusNattapong/KaNomTom")
+tokenizer.save_pretrained("JonusNattapong/KaNomTom")
